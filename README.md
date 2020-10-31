@@ -6,7 +6,7 @@ Laravel Shopify is a simple package which helps to build robust integration into
 
 Add package to composer.json
 
-    composer require ClarityTech/laravel-shopify
+    composer require clarity-tech/laravel-shopify
 
 ### Laravel 5.5+
 
