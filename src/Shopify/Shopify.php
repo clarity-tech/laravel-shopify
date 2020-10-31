@@ -1,0 +1,277 @@
+<?php
+
+namespace ClarityTech\Shopify;
+
+use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Config;
+use ClarityTech\Shopify\Exceptions\ShopifyApiException;
+use ClarityTech\Shopify\Exceptions\ShopifyApiResourceNotFoundException;
+use Illuminate\Support\Collection;
+
+class Shopify
+{
+    protected $key;
+    protected $secret;
+    protected $shopDomain;
+    protected $accessToken;
+    protected $requestHeaders = [];
+    protected $responseHeaders = [];
+    protected $client;
+    protected $responseStatusCode;
+    protected $reasonPhrase;
+
+    public function __construct(Client $client)
+    {
+        $this->client = $client;
+        $this->key = Config::get('shopify.key');
+        $this->secret = Config::get('shopify.secret');
+    }
+
+    /*
+     * Set Shop  Url;
+     */
+    public function setShopUrl(string $shopUrl) : self
+    {
+        $url = parse_url($shopUrl);
+        $this->shopDomain = isset($url['host']) ? $url['host'] : $this->removeProtocol($shopUrl);
+
+        return $this;
+    }
+
+    private function baseUrl() : string
+    {
+        return "https://{$this->shopDomain}/";
+    }
+
+    // Get the URL required to request authorization
+    public function getAuthorizeUrl(array $scope = [], $redirect_url='', $nonce='') : string
+    {
+        $scope = implode(",", $scope);
+        
+
+        $url = "https://{$this->shopDomain}/admin/oauth/authorize?client_id={$this->key}&scope=" . urlencode($scope);
+        
+        if ($redirect_url != '') {
+            $url .= "&redirect_uri=" . urlencode($redirect_url);
+        }
+
+        if ($nonce!='') {
+            $url .= "&state=" . urlencode($nonce);
+        }
+        
+        return $url;
+    }
+
+    public function getAccessToken($code)
+    {
+        $uri = "admin/oauth/access_token";
+        $payload = ["client_id" => $this->key, 'client_secret' => $this->secret, 'code' => $code];
+        $response = $this->makeRequest('POST', $uri, $payload);
+
+        return $response ?? '';
+    }
+
+    public function setAccessToken($accessToken)
+    {
+        $this->accessToken = $accessToken;
+
+        return $this;
+    }
+    
+    public function setKey($key) : self
+    {
+        $this->key = $key;
+
+        return $this;
+    }
+    
+    public function setSecret($secret) : self
+    {
+        $this->secret = $secret;
+
+        return $this;
+    }
+
+    private function getXShopifyAccessToken() : array
+    {
+        return ['X-Shopify-Access-Token' => $this->accessToken];
+    }
+
+    public function addHeader($key, $value) : self
+    {
+        $this->requestHeaders = array_merge($this->requestHeaders, [$key => $value]);
+
+        return $this;
+    }
+
+    public function removeHeaders() : self
+    {
+        $this->requestHeaders = [];
+
+        return $this;
+    }
+
+    /*
+     *  $args[0] is for route uri and $args[1] is either request body or query strings
+     */
+    public function __call($method, $args)
+    {
+        list($uri, $params) = [ltrim($args[0], "/"), $args[1] ?? []];
+        $response = $this->makeRequest($method, $uri, $params, $this->getXShopifyAccessToken());
+
+        return (is_array($response)) ? $this->convertResponseToCollection($response) : $response;
+    }
+
+    private function convertResponseToCollection($response) : Collection
+    {
+        return collect(json_decode(json_encode($response)));
+    }
+
+    private function makeRequest($method, $uri, $params = [], $headers = [])
+    {
+        $query = in_array($method, ['get','delete']) ? "query" : "json";
+
+        $rateLimit = explode("/", $this->getHeader("X-Shopify-Shop-Api-Call-Limit"));
+
+        if ($rateLimit[0] >= 38) {
+            sleep(15);
+        }
+
+        $response = $this->client->request(strtoupper($method), $this->baseUrl().$uri, [
+                'headers' => array_merge($headers, $this->requestHeaders),
+                $query => $params,
+                'timeout' => 120.0,
+                'connect_timeout' => 120.0,
+                'http_errors' => false,
+                "verify" => false
+            ]);
+
+        $this->parseResponse($response);
+        $responseBody = $this->responseBody($response);
+
+        if (isset($responseBody['errors']) || $response->getStatusCode() >= 400) {
+            $errors = is_array($responseBody['errors'])
+                ? json_encode($responseBody['errors'])
+                : $responseBody['errors'];
+
+            if ($response->getStatusCode()  == 404) {
+                throw new ShopifyApiResourceNotFoundException(
+                    $errors ?? $response->getReasonPhrase(),
+                    $response->getStatusCode()
+                );
+            }
+
+            throw new ShopifyApiException(
+                $errors ?? $response->getReasonPhrase(),
+                $response->getStatusCode()
+            );
+        }
+
+        return (is_array($responseBody) && (count($responseBody) > 0)) ? array_shift($responseBody) : $responseBody;
+    }
+
+    private function parseResponse($response)
+    {
+        $this->parseHeaders($response->getHeaders());
+        $this->setStatusCode($response->getStatusCode());
+        $this->setReasonPhrase($response->getReasonPhrase());
+    }
+
+    public function verifyRequest($queryParams)
+    {
+        if (is_string($queryParams)) {
+            $data = [];
+
+            $queryParams = explode('&', $queryParams);
+            foreach ($queryParams as $queryParam) {
+                list($key, $value) = explode('=', $queryParam);
+                $data[$key] = urldecode($value);
+            }
+
+            $queryParams = $data;
+        }
+
+        $hmac = $queryParams['hmac'] ?? '';
+
+        unset($queryParams['signature'], $queryParams['hmac']);
+
+        ksort($queryParams);
+
+        $params = collect($queryParams)->map(function ($value, $key) {
+            $key   = strtr($key, ['&' => '%26', '%' => '%25', '=' => '%3D']);
+            $value = strtr($value, ['&' => '%26', '%' => '%25']);
+
+            return $key . '=' . $value;
+        })->implode("&");
+
+        $calculatedHmac = hash_hmac('sha256', $params, $this->secret);
+
+        return hash_equals($hmac, $calculatedHmac);
+    }
+
+    public function verifyWebHook($data, $hmacHeader) : bool
+    {
+        $calculatedHmac = base64_encode(hash_hmac('sha256', $data, $this->secret, true));
+
+        return ($hmacHeader == $calculatedHmac);
+    }
+
+    private function setStatusCode($code)
+    {
+        $this->responseStatusCode = $code;
+    }
+
+    public function getStatusCode()
+    {
+        return $this->responseStatusCode;
+    }
+
+    private function setReasonPhrase($message)
+    {
+        $this->reasonPhrase = $message;
+    }
+
+    public function getReasonPhrase()
+    {
+        return $this->reasonPhrase;
+    }
+
+    private function parseHeaders($headers)
+    {
+        foreach ($headers as $name => $values) {
+            $this->responseHeaders = array_merge($this->responseHeaders, [$name => implode(', ', $values)]);
+        }
+    }
+
+    public function getHeaders()
+    {
+        return $this->responseHeaders;
+    }
+
+    public function getHeader($header)
+    {
+        return $this->hasHeader($header) ? $this->responseHeaders[$header] : '';
+    }
+
+    public function hasHeader($header)
+    {
+        return array_key_exists($header, $this->responseHeaders);
+    }
+
+    private function responseBody($response)
+    {
+        return json_decode($response->getBody(), true);
+    }
+
+    public function removeProtocol(string $url) : string
+    {
+        $disallowed = ['http://', 'https://','http//','ftp://','ftps://'];
+        foreach ($disallowed as $d) {
+            if (strpos($url, $d) === 0) {
+                return str_replace($d, '', $url);
+            }
+        }
+
+        return $url;
+    }
+}

@@ -1,0 +1,34 @@
+{
+    "name": "clarity-tech/laravel-shopify",
+    "description": "Laravel shopify package",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Manash Sonowal",
+            "email": "manash149@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.3.0",
+        "guzzlehttp/guzzle": "^7.0.1",
+        "illuminate/support": "^7.0|^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ClarityTech\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ClarityTech\\Shopify\\ShopifyServiceProvider"
+            ],
+            "aliases": {
+                "Shopify": "ClarityTech\\Shopify\\Facades\\Shopify"
+            }
+        }
+    },
+    "config": {
+        "preferred-install": "dist"
+    }
+}
