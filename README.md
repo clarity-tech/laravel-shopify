@@ -38,13 +38,23 @@ Setup alias for the Facade
 ],
 ```
 
-## Configuration
+## Set credendials
 
-Laravel Shopify requires connection configuration. You will need to publish vendor assets
+in your `.env` file set these values from your app
+`SHOPIFY_APIKEY=your-api-key`
+`SHOPIFY_SECRET=your-secret-key`
 
-    php artisan vendor:publish
+## Optional Configuration
+
+Laravel Shopify requires api key configuration. You will need to publish configs assets
+
+    `php artisan vendor:publish --tag=shopify-config`
 
 This will create a shopify.php file in the config directory. You will need to set your **API_KEY** and **SECRET**
+```
+'key' => env("SHOPIFY_APIKEY", null),
+'secret' => env("SHOPIFY_SECRET", null)
+```
 
 ## Usage
 
@@ -54,21 +64,22 @@ They are:
 
     1. Shop URL (eg. example.myshopify.com)
     2. Scope (eg. write_products, read_orders, etc)
-    3. Redirect URL (eg. http://mydomain.com/process_oauth_result)
+    3. Redirect URL (eg. http://mydomain.com/authorize)
 
 This process will enable us to obtain the shops access token
 
-```php5
+```php
 use ClarityTech\Shopify\Facades\Shopify;
 
-Route::get("install_shop",function()
+Route::get("shop/install", function(\Illuminate\Http\Request $request)
 {
-    $shopUrl = "example.myshopify.com";
+    //$redirectUrl = route('shop.authorize');
+    $redirectUrl = "http://mydomain.com/shop/authorize";
+    $myShopifyDomain = $request->shop;
     $scope = ["write_products","read_orders"];
-    $redirectUrl = "http://mydomain.com/process_oauth_result";
-
-    $shopify = Shopify::setShopUrl($shopUrl);
-    return redirect()->to($shopify->getAuthorizeUrl($scope,$redirectUrl));
+    $authorizeUrl = Shopify::getAuthorizeUrl($myShopifyDomain, $scopes, $redirectUrl);
+    
+    return redirect()->to($authorizeUrl);
 });
 ```
 
@@ -77,11 +88,16 @@ Let's retrieve access token
 ```php5
 Route::get("process_oauth_result",function(\Illuminate\Http\Request $request)
 {
-    $shopUrl = "example.myshopify.com";
-    $accessToken = Shopify::setShopUrl($shopUrl)->getAccessToken($request->code);
+    $shopifyApi = resolve('shopify');
+    $myShopifyDomain = $request->shop;
+    $code = $request->code;
+
+    $token = $shopifyApi
+        ->setShopDomain($myShopifyDomain)
+        ->getAccessToken($code);
 
     dd($accessToken);
-    
+    //store the access token for future api calls on behalf of the shop    
     // redirect to success page or billing etc.
 });
 ```

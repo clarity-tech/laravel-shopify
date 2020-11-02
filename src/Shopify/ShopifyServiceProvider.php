@@ -21,9 +21,12 @@ class ShopifyServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->publishes([
-            __DIR__.'/../config/shopify.php' => config_path('shopify.php'),
-        ]);
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../config/shopify.php' => config_path('shopify.php'),
+            ], 'shopify-config');
+        }
+        
 
         $this->app->alias('Shopify', 'ClarityTech\Shopify\Facades\Shopify');
     }
@@ -35,8 +38,9 @@ class ShopifyServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->singleton('shopify',function($app) 
-        {
+        $this->mergeConfigFrom(__DIR__.'/../config/shopify.php', 'shopify');
+
+        $this->app->singleton('shopify', function ($app) {
             return new Shopify(new Client);
         });
     }
