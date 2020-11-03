@@ -278,14 +278,14 @@ class Shopify
             return $key . '=' . $value;
         })->implode("&");
 
-        $calculatedHmac = hash_hmac('sha256', $params, $this->secret);
+        $calculatedHmac = hash_hmac('sha256', $params, self::getSecret());
 
         return hash_equals($hmac, $calculatedHmac);
     }
 
     public function verifyWebHook($data, $hmacHeader) : bool
     {
-        $calculatedHmac = base64_encode(hash_hmac('sha256', $data, $this->secret, true));
+        $calculatedHmac = base64_encode(hash_hmac('sha256', $data, self::getSecret(), true));
 
         return ($hmacHeader == $calculatedHmac);
     }
