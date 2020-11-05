@@ -147,21 +147,17 @@ class Shopify
         return $this;
     }
 
+    public function setShop(string $domain, string $accessToken)
+    {
+        $this->setShopDomain($domain)
+            ->setAccessToken($accessToken);
+
+        return $this;
+    }
+
     protected function getXShopifyAccessToken() : array
     {
         return ['X-Shopify-Access-Token' => self::$accessToken];
-    }
-
-    public function withAccessToken()
-    {
-        $accessTokenHeader = $this->getXShopifyAccessToken();
-
-        foreach ($accessTokenHeader as $key => $value) {
-            $this->addHeader($key, $value);
-        }
-        
-        
-        return $this;
     }
 
     public function addHeader($key, $value) : self

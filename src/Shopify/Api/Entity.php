@@ -10,12 +10,31 @@ class Entity extends Resource implements Arrayable
 {
     protected function getEntityUrl() : string
     {
+        $className = $this->getEntityClassName();
+
+        if (static::isSingle()) {
+            return $className.'.json';
+        }
+
+        return $className.'s.json';
+    }
+
+    protected function getEntityClassName()
+    {
         $fullClassName = get_class($this);
         $pos = strrpos($fullClassName, '\\');
         $className = substr($fullClassName, $pos + 1);
         $className = Str::of($className)->snake();
+        return $className;
+    }
 
-        return $className.'.json';
+    /**
+     * Determines wheter the entity or the resonse
+     * is single instance or list of instances
+     */
+    public static function isSingle() : bool
+    {
+        return false;
     }
 
     public function toArray()
@@ -92,7 +111,11 @@ class Entity extends Resource implements Arrayable
         $entity = new static;
         // $class = get_class($this);
         // $entity = new $class;
-        $entity->fill($data);
+
+        if (count($data) > 0) {
+            //static::isSingle()
+            $entity->fill($data, static::isSingle());
+        }
 
         return $entity;
         //if (isset($data['entity'])) {
@@ -107,7 +130,7 @@ class Entity extends Resource implements Arrayable
         // }
     }
 
-    public function fill($data)
+    public function fill($data, bool $single = false)
     {
         $attributes = [];
 
@@ -144,6 +167,24 @@ class Entity extends Resource implements Arrayable
     {
         $entityUrl = $this->getEntityUrl();
 
-        return $this->request('get', $entityUrl, $params);
+        return $this->request('GET', $entityUrl, $params);
+    }
+
+    protected function all(array $options = [])
+    {
+        $entityUrl = $this->getEntityUrl();
+
+        return $this->request('GET', $entityUrl, $options);
+    }
+
+    protected function create(array $attributes = [])
+    {
+        $entityUrl = $this->getEntityUrl();
+
+        $entiyName = (string) $this->getEntityClassName();
+        
+        $params[$entiyName] = $attributes;
+
+        return $this->request('POST', $entityUrl, $params);
     }
 }

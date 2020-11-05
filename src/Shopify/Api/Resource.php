@@ -46,14 +46,6 @@ class Resource
         return $this->attributes[$key] = $value;
     }
 
-    public function setShop($domain, string $accessToken)
-    {
-        Shopify::setShopUrl($domain)
-            ->setAccessToken($accessToken);
-
-        return $this;
-    }
-
 
     // public function __isset($key)
     // {
