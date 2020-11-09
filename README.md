@@ -44,7 +44,7 @@ in your `.env` file set these values from your app
 `SHOPIFY_APIKEY=your-api-key`
 `SHOPIFY_SECRET=your-secret-key`
 
-## Optional Configuration
+## Optional Configuration (publishing)
 
 Laravel Shopify requires api key configuration. You will need to publish configs assets
 
@@ -95,6 +95,8 @@ Route::get("process_oauth_result",function(\Illuminate\Http\Request $request)
     $token = $shopifyApi
         ->setShopDomain($myShopifyDomain)
         ->getAccessToken($code);
+        //this gets access token from shopify and set it to the current  instance which will be passed in further api calls
+
 
     dd($accessToken);
     //store the access token for future api calls on behalf of the shop    
@@ -105,11 +107,13 @@ Route::get("process_oauth_result",function(\Illuminate\Http\Request $request)
 To verify request(hmac)
 
 ```php5
+use ClarityTech\Shopify\Facades\Shopify;
+
 public function verifyRequest(Request $request)
 {
-    $queryString = $request->getQueryString();
+    $params = $request->all();
 
-    if(Shopify::verifyRequest($queryString)){
+    if (Shopify::verifyRequest($params)){
         logger("verification passed");
     }else{
         logger("verification failed");
@@ -121,11 +125,12 @@ public function verifyRequest(Request $request)
 To verify webhook(hmac)
 
 ```php5
+use ClarityTech\Shopify\Facades\Shopify;
 
 public function verifyWebhook(Request $request)
 {
     $data = $request->getContent();
-    $hmacHeader = $request->server('HTTP_X_SHOPIFY_HMAC_SHA256');
+    $hmacHeader = $request->header('x-shopify-hmac-sha256');
 
     if (Shopify::verifyWebHook($data, $hmacHeader)) {
         logger("verification passed");
@@ -150,17 +155,19 @@ Let use our access token to get products from shopify.
 **NB:** You can use this to access any resource on shopify (be it Product, Shop, Order, etc)
 
 ```php5
+use ClarityTech\Shopify\Facades\Shopify;
+
 $shopUrl = "example.myshopify.com";
-$accessToken = "xxxxxxxxxxxxxxxxxxxxx";
-$products = Shopify::setShopUrl($shopUrl)->setAccessToken($accessToken)->get("admin/products.json");
+$accessToken = "xxxxxxxxxxxxxxxxxxxxx"; //retrieve from your storage(db)
+$products = Shopify::setShop($myShopifyDomain, $accessToken)->get("admin/products.json");
 ```
 
 To pass query params
 
 ```php5
 // returns Collection
-$shopify = Shopify::setShopUrl($shopUrl)->setAccessToken($accessToken);
-$products = $shopify->get("admin/products.json", ["limit"=>20, "page" => 1]);
+Shopify::setShop($myShopifyDomain, $accessToken);
+$products = Shopify::get('admin/products.json', ["limit"=>20, "page" => 1]);
 ```
 
 ## Controller Example
@@ -181,17 +188,15 @@ class Foo
     }
 
     /*
-    * returns Collection
+    * returns products
     */
     public function getProducts(Request $request)
     {
-        $products = $this->shopify->setShopUrl($shopUrl)
-            ->setAccessToken($accessToken)
+        $accessToken = 'xxxxxxxxxxxxxxxxxxxxx';//retrieve from your storage(db)
+        $products = $this->shopify->setShop($request->shop, $accessToken)
             ->get('admin/products.json');
 
-        $products->each(function($product){
-             \Log::info($product->title);
-        });
+        dump($products);
     }
 }
 ```

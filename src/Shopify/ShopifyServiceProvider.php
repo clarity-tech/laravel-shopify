@@ -2,7 +2,6 @@
 
 namespace ClarityTech\Shopify;
 
-use GuzzleHttp\Client;
 use Illuminate\Support\ServiceProvider;
 
 class ShopifyServiceProvider extends ServiceProvider
@@ -41,7 +40,7 @@ class ShopifyServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/shopify.php', 'shopify');
 
         $this->app->singleton('shopify', function ($app) {
-            return new Shopify(new Client);
+            return new Shopify();
         });
     }
 

@@ -2,15 +2,14 @@
 
 namespace ClarityTech\Shopify;
 
-use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use ClarityTech\Shopify\Exceptions\ShopifyApiException;
 use ClarityTech\Shopify\Exceptions\ShopifyApiResourceNotFoundException;
+use Psr\Http\Message\ResponseInterface;
 
 class Shopify
 {
-    protected Client $client;
-    
     protected static ?string $key = null;
     protected static ?string $secret = null;
     protected static ?string $shopDomain = null;
@@ -18,18 +17,27 @@ class Shopify
 
     public const VERSION = '2020-01';
     public const PREFIX = 'admin/api/';
+
+    public bool $debug = false;
     
     protected array $requestHeaders = [];
     protected array $responseHeaders = [];
     protected $responseStatusCode;
     protected $reasonPhrase;
 
-    public function __construct(Client $client)
+    // public function __construct(Client $client)
+    // {
+    //     $this->client = $client;
+    //     self::$key = Config::get('shopify.key');
+    //     self::$secret = Config::get('shopify.secret');
+    // }
+    public function __construct()
     {
-        $this->client = $client;
         self::$key = Config::get('shopify.key');
         self::$secret = Config::get('shopify.secret');
     }
+
+    //use Illuminate\Support\Facades\Http;
 
     public function api()
     {
@@ -133,9 +141,13 @@ class Shopify
 
         $response = $this->makeRequest('POST', $uri, $payload);
 
-        $this->setAccessToken($response);
+        $response = $response->json();
 
-        return $response ?? '';
+        $accessToken = $response['access_token'] ?? null;
+
+        $this->setAccessToken($accessToken);
+
+        return $accessToken ?? '';
     }
 
     public function setAccessToken($accessToken)
@@ -152,7 +164,12 @@ class Shopify
         return $this;
     }
 
-    protected function getXShopifyAccessToken() : array
+    public function isTokenSet() : bool
+    {
+        return !is_null(self::$accessToken);
+    }
+
+    protected function getXShopifyAccessTokenHeader() : array
     {
         return ['X-Shopify-Access-Token' => self::$accessToken];
     }
@@ -171,78 +188,94 @@ class Shopify
         return $this;
     }
 
+    public function setDebug(bool $status = true)
+    {
+        $this->debug = $status;
+
+        return $this;
+    }
+
     /*
      *  $args[0] is for route uri and $args[1] is either request body or query strings
      */
     public function __call($method, $args)
     {
-        list($uri, $params) = [ltrim($args[0], "/"), $args[1] ?? []];
-        $response = $this->makeRequest($method, $uri, $params, $this->getXShopifyAccessToken());
+        list($uri, $params) = [ltrim($args[0], '/'), $args[1] ?? []];
+        $response = $this->makeRequest($method, $uri, $params);
 
-        //return (is_array($response)) ? $this->convertResponseToCollection($response) : $response;
+        if (is_array($array = $response->json()) && count($array) == 1) {
+            return array_shift($array);
+        }
+
         return $response;
     }
 
-    public function makeRequest(string $method, string $path, array $params = [], array $headers = [])
+    public function getHeadersForSend() : array
     {
-        $query = in_array($method, ['get','delete']) ? 'query' : 'json';
+        $headers = [];
 
-        $rateLimit = explode('/', $this->getHeader('X-Shopify-Shop-Api-Call-Limit'));
-
-        if ($rateLimit[0] >= 38) {
-            sleep(15);
+        if ($this->isTokenSet()) {
+            $headers = $this->getXShopifyAccessTokenHeader();
         }
+        return array_merge($headers, $this->requestHeaders);
+    }
+
+    public function makeRequest(string $method, string $path, array $params = [])
+    {
+        //TODO apply ratelimit or handle it outside from caller function
+        // aso that we can have more control when we can retry etc
 
         $url = self::getBaseUrl() . $path;
 
-        $response = $this->client
-            ->request(strtoupper($method), $url, [
-                'headers' => array_merge($headers, $this->requestHeaders),
-                $query => $params,
-                'timeout' => 120.0,
-                'connect_timeout' => 120.0,
-                'http_errors' => false,
-                "verify" => false
-            ]);
+        $method = strtolower($method);
 
-        $this->parseResponse($response);
-        $responseBody = $this->responseBody($response);
+        $response = Http::withOptions(['debug' => $this->debug,])
+                ->withHeaders($this->getHeadersForSend())
+                ->$method($url, $params);
 
-        logger('shopify request ENDPOINT '. $url);
-        logger('shopify request params ', (array) $params);
-        logger('shopify request requestHeaders ', (array) array_merge($headers, $this->requestHeaders));
+        $this->parseResponse($response->toPsrResponse());
 
-        if (isset($responseBody['errors']) || $response->getStatusCode() >= 400) {
-            logger('shopify error responseheaders ', (array) $this->responseHeaders);
-            logger('shopify error response ', (array) $responseBody);
-
-            if (! is_null($responseBody)) {
-                $errors = is_array($responseBody['errors'])
-                ? json_encode($responseBody['errors'])
-                : $responseBody['errors'];
-
-                if ($response->getStatusCode()  == 404) {
-                    throw new ShopifyApiResourceNotFoundException(
-                        $errors ?? $response->getReasonPhrase(),
-                        $response->getStatusCode()
-                    );
-                }
-            }
-
-            throw new ShopifyApiException(
-                $errors ?? $response->getReasonPhrase(),
-                $response->getStatusCode()
-            );
+        if ($response->successful()) {
+            return $response;
         }
 
-        return (is_array($responseBody) && (count($responseBody) > 0)) ? array_shift($responseBody) : $responseBody;
+        return $this->throwErrors($response);
     }
 
-    private function parseResponse($response)
+    protected function parseResponse(ResponseInterface $response)
     {
-        $this->parseHeaders($response->getHeaders());
-        $this->setStatusCode($response->getStatusCode());
-        $this->setReasonPhrase($response->getReasonPhrase());
+        $this
+            ->setResponseHeaders($response->getHeaders())
+            ->setStatusCode($response->getStatusCode())
+            ->setReasonPhrase($response->getReasonPhrase());
+    }
+
+    protected function throwErrors($httpResponse)
+    {
+        $response = $httpResponse->json();
+        $psrResponse = $httpResponse->toPsrResponse();
+
+        $statusCode = $psrResponse->getStatusCode();
+
+        if (isset($response['errors']) || $statusCode >= 400) {
+            $errorString = null;
+            
+            if (!is_null($response)) {
+                $errorString = is_array($response['errors']) ? json_encode($response['errors']) : $response['errors'];
+            }
+            
+            if ($statusCode  == 404) {
+                throw new ShopifyApiResourceNotFoundException(
+                    $errorString ?? $psrResponse->getReasonPhrase(),
+                    $statusCode
+                );
+            }
+            
+            throw new ShopifyApiException(
+                $errorString ?? $psrResponse->getReasonPhrase(),
+                $statusCode
+            );
+        }
     }
 
     public function verifyRequest($queryParams)
@@ -287,6 +320,7 @@ class Shopify
     private function setStatusCode($code)
     {
         $this->responseStatusCode = $code;
+        return $this;
     }
 
     public function getStatusCode()
@@ -304,11 +338,10 @@ class Shopify
         return $this->reasonPhrase;
     }
 
-    private function parseHeaders($headers)
+    private function setResponseHeaders($headers)
     {
-        foreach ($headers as $name => $values) {
-            $this->responseHeaders = array_merge($this->responseHeaders, [$name => implode(', ', $values)]);
-        }
+        $this->responseHeaders = $headers;
+        return $this;
     }
 
     public function getHeaders()
@@ -324,10 +357,5 @@ class Shopify
     public function hasHeader($header)
     {
         return array_key_exists($header, $this->responseHeaders);
-    }
-
-    private function responseBody($response)
-    {
-        return json_decode($response->getBody(), true);
     }
 }

@@ -84,6 +84,8 @@ class Entity extends Resource implements Arrayable
         
         $response = Shopify::$method($url, $params);
 
+        //$response = $response->json();
+
         return static::buildEntity($response);
     }
 
