@@ -253,7 +253,7 @@ SubscribeAppUninstalledWebhookJob::dispatch($shop);
 
 To customize the AppUninstalled Job
 Publish it by
-`php artisan vendor:publish --tag=shopify-config`
+`php artisan vendor:publish --tag=shopify-jobs`
 
 You might not need this
 We also dispatch events for webhooks if it is not for uninstalled topic for the same webhook
