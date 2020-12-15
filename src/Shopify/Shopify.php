@@ -18,6 +18,8 @@ class Shopify
     public const VERSION = '2020-01';
     public const PREFIX = 'admin/api/';
 
+    public const UNINSTALL_TOPIC = 'app/uninstalled';
+
     public bool $debug = false;
     
     protected array $requestHeaders = [];
