@@ -9,3 +9,4 @@ Homestead.json
 /.phpcomplete_extended
 tests/_output/*
 composer.lock
+/**/*.DS_Store

@@ -48,7 +48,7 @@ in your `.env` file set these values from your app
 
 Laravel Shopify requires api key configuration. You will need to publish configs assets
 
-    `php artisan vendor:publish --tag=shopify-config`
+`php artisan vendor:publish --tag=shopify-config`
 
 This will create a shopify.php file in the config directory. You will need to set your **API_KEY** and **SECRET**
 ```
@@ -100,9 +100,20 @@ Route::get("process_oauth_result",function(\Illuminate\Http\Request $request)
 
     dd($accessToken);
     //store the access token for future api calls on behalf of the shop    
+    
     // redirect to success page or billing etc.
 });
 ```
+
+To make the code less verbose we have added a app uninstalled job which can be subscribed via the app uninstalled webhook from shopify that can be configured automatically from your shop
+
+After installation dispatch this job
+
+```php5
+SubscribeAppUninstalledWebhookJob::dispatch($shop);
+```
+which will subscribe to the `app/uninstalled` webhook
+under `/webhooks/shopify/uninstalled` route and will 
 
 To verify request(hmac)
 
@@ -227,14 +238,26 @@ Shopify::getStatusCode(); // 200
 Shopify::getReasonPhrase(); // ok
 ```
 
+Optional features
+
+We also have a middleware for verifying the webhooks
+you can directly use it in your webhooks by the name `verify.webhook`
 
 
+We have also added a automatic app uninstalled job dispatch when app is uninstalled by subscribing to the webhook topic `app/uninstalled`.
+To configure this you need to implement the interface `Shopify/Contracts/ShopifyShop` in your shop model and then
 
+```php5
+SubscribeAppUninstalledWebhookJob::dispatch($shop);
+```
 
+To customize the AppUninstalled Job
+Publish it by
+`php artisan vendor:publish --tag=shopify-config`
 
-
-
-
+You might not need this
+We also dispatch events for webhooks if it is not for uninstalled topic for the same webhook
+`ClarityTech\Shopify\Events\ShopifyWebhookRecieved`
 
 
 
