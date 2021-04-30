@@ -97,7 +97,6 @@ class ShopifyServiceProvider extends ServiceProvider
      */
     private function publishJobs(): void
     {
-        logger('asd' . __DIR__.'/Jobs/AppUninstalledJob.php');
         // Job publish
         $this->publishes(
             [
