@@ -12,10 +12,10 @@ class Shopify
 {
     protected static ?string $key = null;
     protected static ?string $secret = null;
+    protected static ?string $version = null;
     protected static ?string $shopDomain = null;
     protected static ?string $accessToken = null;
 
-    public const VERSION = '2020-01';
     public const PREFIX = 'admin/api/';
 
     public const UNINSTALL_TOPIC = 'app/uninstalled';
@@ -37,6 +37,7 @@ class Shopify
     {
         self::$key = Config::get('shopify.key');
         self::$secret = Config::get('shopify.secret');
+        self::$version = Config::get('shopify.version');
     }
 
     //use Illuminate\Support\Facades\Http;
@@ -86,7 +87,7 @@ class Shopify
 
     public function version() : string
     {
-        return self::VERSION;
+        return self::$version;
     }
 
     public static function apiPrefix() : string

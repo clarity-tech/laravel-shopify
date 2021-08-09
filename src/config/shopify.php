@@ -16,6 +16,8 @@ return [
     'key' => env("SHOPIFY_APIKEY", null),
     'secret' => env("SHOPIFY_SECRET", null),
 
+    'version' => env("SHOPIFY_VERSION", null),
+
     // the prefix of the webhook url for uninstalled job
     'enable_webhook' => (bool) env('ENABLE_WEBHOOK', 1),
     'prefix' => 'webhooks/shopify',
