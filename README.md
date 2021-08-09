@@ -43,6 +43,7 @@ Setup alias for the Facade
 in your `.env` file set these values from your app
 `SHOPIFY_APIKEY=your-api-key`
 `SHOPIFY_SECRET=your-secret-key`
+`SHOPIFY_VERSION=admin-api-version`
 
 ## Optional Configuration (publishing)
 
