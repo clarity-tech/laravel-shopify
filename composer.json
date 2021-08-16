@@ -21,7 +21,8 @@
     "extra": {
         "laravel": {
             "providers": [
-                "ClarityTech\\Shopify\\ShopifyServiceProvider"
+                "ClarityTech\\Shopify\\ShopifyServiceProvider",
+                "ClarityTech\\Shopify\\AuthServiceProvider"
             ],
             "aliases": {
                 "Shopify": "ClarityTech\\Shopify\\Facades\\Shopify"

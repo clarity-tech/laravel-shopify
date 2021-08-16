@@ -37,6 +37,28 @@ Setup alias for the Facade
     'Shopify' => ClarityTech\Shopify\Facades\Shopify::class,
 ],
 ```
+## Set shopify app authentication
+
+Update config/app.php with below code and in routes add `auth:shopify` as middleware
+
+```php5
+
+'guards' => [
+    ...
+    'shopify' => [
+        'driver' => 'shopify-auth',
+        'provider' => 'shops',
+    ],
+],
+
+'providers' => [
+    ...
+    'shops' => [
+        'driver' => 'eloquent',
+        'model' => App\Models\Shop::class,
+    ]
+],
+```
 
 ## Set credendials
 

@@ -100,7 +100,7 @@ class ShopifyServiceProvider extends ServiceProvider
         // Job publish
         $this->publishes(
             [
-                __DIR__.'/Jobs/AppUninstalledJob.php' => "{$this->app->path()}/Jobs/AppUninstalledJob.php",
+                __DIR__.'/Jobs/AppUninstalledJob.php' => app_path("Jobs/AppUninstalledJob.php"),
             ],
             'shopify-jobs'
         );
