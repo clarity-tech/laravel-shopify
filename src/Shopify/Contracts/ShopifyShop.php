@@ -9,4 +9,6 @@ interface ShopifyShop
     public function getShopToken() : string;
 
     public function getShopifyDomain() : string;
+
+    public function username() : string;
 }
