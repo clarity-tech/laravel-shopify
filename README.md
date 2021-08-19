@@ -62,10 +62,12 @@ Update config/app.php with below code and in routes add `auth:shopify` as middle
 
 ## Set credendials
 
-in your `.env` file set these values from your app
-`SHOPIFY_APIKEY=your-api-key`
-`SHOPIFY_SECRET=your-secret-key`
-`SHOPIFY_VERSION=admin-api-version`
+in your `.env` file set these values from your app \
+`SHOPIFY_APIKEY=your-api-key` \
+`SHOPIFY_SECRET=your-secret-key` \
+`SHOPIFY_VERSION=admin-api-version` \
+only if app is private \
+`API_PASSWORD=private-app-password`
 
 ## Optional Configuration (publishing)
 
@@ -174,6 +176,20 @@ public function verifyWebhook(Request $request)
 }
 
 ```
+To access Admin API use 
+
+```php5
+$myshopify_domain = "example.myshopify.com";
+$access_token = "xxxxxxxxxxxxxxxxxxxxx";
+$api = Shopify::setShop($myshopify_domain, $access_token)->basicApi();
+
+// For sync rest api
+$res = $api->rest('GET', '/admin/shop.json')
+
+// For sync graphql api
+$res = $api->graph('{ products(first: 1) { edges { node { handle, id } } } }', [])
+```
+
 
 To access API resource use
 

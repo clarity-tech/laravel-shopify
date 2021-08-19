@@ -16,6 +16,9 @@ return [
     'key' => env("SHOPIFY_APIKEY", null),
     'secret' => env("SHOPIFY_SECRET", null),
 
+    // required only for private apps
+    'api_password' => env("API_PASSWORD", null),
+
     'version' => env("SHOPIFY_VERSION", '2020-01'),
 
     // the prefix of the webhook url for uninstalled job
