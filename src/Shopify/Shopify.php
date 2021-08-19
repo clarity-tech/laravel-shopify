@@ -6,12 +6,16 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use ClarityTech\Shopify\Exceptions\ShopifyApiException;
 use ClarityTech\Shopify\Exceptions\ShopifyApiResourceNotFoundException;
+use Osiset\BasicShopifyAPI\BasicShopifyAPI;
+use Osiset\BasicShopifyAPI\Options;
+use Osiset\BasicShopifyAPI\Session;
 use Psr\Http\Message\ResponseInterface;
 
 class Shopify
 {
     protected static ?string $key = null;
     protected static ?string $secret = null;
+    protected static ?string $api_password = null;
     protected static ?string $version = null;
     protected static ?string $shopDomain = null;
     protected static ?string $accessToken = null;
@@ -37,6 +41,7 @@ class Shopify
     {
         self::$key = Config::get('shopify.key');
         self::$secret = Config::get('shopify.secret');
+        self::$api_password = Config::get('shopify.api_password');
         self::$version = Config::get('shopify.version');
     }
 
@@ -211,6 +216,28 @@ class Shopify
         }
 
         return $response;
+    }
+
+    /**
+     * @param bool $is_private true for private apps
+     * 
+     * @return \ClarityTech\Shopify\BasicApi\BasicShopifyAPI $api
+     */
+    public function basicApi(bool $is_private = false)
+    {
+        $options = new Options();
+        $options->setVersion($this::$version);
+        if($is_private) {
+            $options->setType(true);
+            $options->setApiKey(env($this::$key));
+            $options->setApiPassword($this::$api_password);
+            $session = new Session($this::$shopDomain);
+        }else {
+            $session = new Session($this::$shopDomain, $this::$accessToken);
+        }
+        $api = new BasicShopifyAPI($options);
+        $api->setSession($session);
+        return $api;
     }
 
     public function getHeadersForSend() : array
