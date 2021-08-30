@@ -340,6 +340,35 @@ class Shopify
         return hash_equals($hmac, $calculatedHmac);
     }
 
+    public function verifySignature($queryParams) : bool
+    {
+        if (is_string($queryParams)) {
+            $data = [];
+
+            $queryParams = explode('&', $queryParams);
+            foreach ($queryParams as $queryParam) {
+                list($key, $value) = explode('=', $queryParam);
+                $data[$key] = urldecode($value);
+            }
+
+            $queryParams = $data;
+        }
+        
+        $hmac = $queryParams['signature'] ?? '';
+
+        unset($queryParams['signature']);
+
+        ksort($queryParams);
+
+        $query = urldecode(http_build_query($queryParams));
+
+        $params = str_replace('&', '', $query);
+
+        $calculatedHmac = hash_hmac('sha256', $params, self::getSecret());
+
+        return hash_equals($hmac, $calculatedHmac);
+    }
+
     public function verifyWebHook($data, $hmacHeader) : bool
     {
         $calculatedHmac = base64_encode(hash_hmac('sha256', $data, self::getSecret(), true));

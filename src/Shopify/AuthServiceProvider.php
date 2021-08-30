@@ -51,8 +51,8 @@ class AuthServiceProvider extends ServiceProvider
                                 $object->username() => $myshopify_domain
                             ]);
                         }
-                    } elseif ($request->has('shop') && $request->has('hmac')) {
-                        if (Shopify::verifyRequest($request->all())) {
+                    } elseif ($request->has('shop') && ($request->has('hmac') || $request->has('signature'))) {
+                        if (Shopify::verifyRequest($request->all()) || Shopify::verifySignature($request->all())) {
                             $shop = $user_provider->retrieveByCredentials([
                                 $object->username() => $request->shop
                             ]);
