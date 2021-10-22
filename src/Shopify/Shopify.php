@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Http;
 use ClarityTech\Shopify\Exceptions\ShopifyApiException;
 use ClarityTech\Shopify\Exceptions\ShopifyApiResourceNotFoundException;
 use Osiset\BasicShopifyAPI\BasicShopifyAPI;
+use Osiset\BasicShopifyAPI\Contracts\StateStorage;
+use Osiset\BasicShopifyAPI\Contracts\TimeDeferrer;
 use Osiset\BasicShopifyAPI\Options;
 use Osiset\BasicShopifyAPI\Session;
 use Psr\Http\Message\ResponseInterface;
@@ -223,7 +225,7 @@ class Shopify
      * 
      * @return \ClarityTech\Shopify\BasicApi\BasicShopifyAPI $api
      */
-    public function basicApi(bool $is_private = false)
+    public function basicApi(bool $is_private = false, ?StateStorage $tstore = null, ?StateStorage $lstore = null, ?TimeDeferrer $tdeferrer = null)
     {
         $options = new Options();
         $options->setVersion($this::$version);
@@ -235,7 +237,7 @@ class Shopify
         }else {
             $session = new Session($this::$shopDomain, $this::$accessToken);
         }
-        $api = new BasicShopifyAPI($options);
+        $api = new BasicShopifyAPI($options, $tstore, $lstore, $tdeferrer);
         $api->setSession($session);
         return $api;
     }
