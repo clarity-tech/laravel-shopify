@@ -83,6 +83,11 @@ This will create a shopify.php file in the config directory. You will need to se
 
 ## Usage
 
+## Frontend
+Get the shopify session token using shopify fronend sdk & add `Shopify-Token` header in every request or send the inital url params appended by shopify
+
+## Backend
+
 To install/integrate a shop you will need to initiate an oauth authentication with the shopify API and this require three components.
 
 They are:

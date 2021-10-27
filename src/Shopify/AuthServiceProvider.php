@@ -37,8 +37,8 @@ class AuthServiceProvider extends ServiceProvider
                 $object = new $class();
                 
                 if($object){
-                    if ($request->has('token')) {
-                        $token = $request->token;
+                    if ($request->hasHeader('Shopify-Token')) {
+                        $token = $request->header('Shopify-Token');
                         $key = config('shopify.secret');
                         $tokenParts = explode(".", $token);
                         $tokenPayload = base64_decode($tokenParts[1]);
